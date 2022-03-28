@@ -70,3 +70,27 @@ public class App {
 ```
  
 - sometimes, we only need to run one method inside a thread and creating a whole class seems to be a lot of hassle. So we can use anonymous class which is faster and we don't need to creat a separate class for it.
+```java
+public class App {
+
+    public static void main(String[] args) {
+        Thread t1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                for (int i=0; i<10; i++){
+                    System.out.println("Hello " + i);
+
+                    try {
+                        Thread.sleep(100); // to slow the loop, sleep every 100 ms
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        });
+
+        t1.start();
+    }
+}
+
+```

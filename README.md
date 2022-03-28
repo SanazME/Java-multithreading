@@ -273,3 +273,248 @@ public class App {
     }
 }
 ```
+
+## Multiple Locks; Using Synchronized Code Blocks
+- we have our main app which call Worker.main() method and Worker class has two lists and two stages and do work on those lists. Let's imagine that `stageOne()` method in Worker class does some calculations which we show by sleeping the thread `Thread.sleep(1) // 1 s` to slow the program. For example that can represents pinging a machine which takes some time and then adding that ping time: `list1.add(random.nextInt(100))`.
+
+```java
+public class Worker {
+
+    private Random random = new Random();
+
+    private List<Integer> list1 = new ArrayList<Integer>();
+    private List<Integer> list2 = new ArrayList<Integer>();
+
+    public void stageOne(){
+        try {
+            Thread.sleep(1);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        list1.add(random.nextInt(100));
+    }
+
+    public void stageTwo(){
+        try {
+            Thread.sleep(1);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        list2.add(random.nextInt(100));
+    }
+
+    public void process(){
+        for (int i=0; i<1000; i++){
+            stageOne();
+            stageTwo();
+        }
+    }
+
+    public void main(){
+        System.out.println("Starting ... ");
+
+        long start = System.currentTimeMillis();
+
+        process();
+
+        long end = System.currentTimeMillis();
+
+        System.out.println("Time take: " + (end - start));
+        System.out.println("List1: " + list1.size() + "; list2: " + list2.size());
+    }
+}
+
+public class App {
+
+  public static void main(String[] args) {
+    new Worker().main();
+  }
+}
+
+```
+- so in the above scenario, we might be processing a file or pinging a machine and in the `process` method it loops 1000 times and each time, it calls stageOne and stageTwo. The output time is about 2-3 s because each stage take 1 ms and it repeats 1000 times so the overall of two processes are about 2000 ms.
+```java
+Starting ... 
+Time take: 2661
+List1: 1000; list2: 1000
+```
+
+- we can speed up the process by running them on multiple threads. So define two threads that run process method and we see that now the size of lists are different that 1000 each because of thread interleaving problem:
+```java
+public class Worker {
+
+    private Random random = new Random();
+
+    private List<Integer> list1 = new ArrayList<Integer>();
+    private List<Integer> list2 = new ArrayList<Integer>();
+
+    public void stageOne(){
+        try {
+            Thread.sleep(1);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        list1.add(random.nextInt(100));
+    }
+
+    public void stageTwo(){
+        try {
+            Thread.sleep(1);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        list2.add(random.nextInt(100));
+    }
+
+    public void process(){
+        for (int i=0; i<1000; i++){
+            stageOne();
+            stageTwo();
+        }
+    }
+
+    public void main(){
+        System.out.println("Starting ... ");
+
+        long start = System.currentTimeMillis();
+        // thread 1
+        Thread t1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                process();
+            }
+        });
+
+        // thread 2
+        Thread t2 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                process();
+            }
+        });
+
+        t1.start();
+        t2.start();
+
+        try {
+            t1.join();
+            t2.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        long end = System.currentTimeMillis();
+
+        System.out.println("Time take: " + (end - start));
+        System.out.println("List1: " + list1.size() + "; list2: " + list2.size());
+    }
+}
+```
+
+output and the time takes is still about that 2 s:
+```java
+Starting ... 
+Time take: 2674
+List1: 1808; list2: 1831
+```
+
+- we have to make stageOne and stageTwo methods `synchronized` by adding that keyword and running it now takes double time while the size of arrays are correct:
+```java
+Starting ... 
+Time take: 5390
+List1: 2000; list2: 2000
+```
+
+- The reason is when we call synchronized keyword, it acquire the intrinsic lock of `Worker` object and so if one thread runs `stageOne` method, the second try can not run that method and has to wait till the lock is released. The same for `stageTwo` method which is the behavior we want BUT **the problem is there is only ONE lock for `Worker` object so if one thread runns stageOne method, another thread has to wait to run stageTwo method even though those two methods are INDEPENDENT and not sharing the same data and can be run on two different threads at the same time**.
+
+- we can do this by creating separate lock objects (new objects) and synchronizing locks separately (adding synchronized block):
+```java
+public class Worker {
+
+    private Random random = new Random();
+
+    private Object lock1 = new Object();
+    private Object lock2 = new Object();
+
+    private List<Integer> list1 = new ArrayList<Integer>();
+    private List<Integer> list2 = new ArrayList<Integer>();
+
+    public void stageOne(){
+
+        synchronized (lock1) {
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            list1.add(random.nextInt(100));
+        }
+    }
+
+    public void stageTwo(){
+
+        synchronized (lock2) {
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            list2.add(random.nextInt(100));
+        }
+    }
+
+    public void process(){
+        for (int i=0; i<1000; i++){
+            stageOne();
+            stageTwo();
+        }
+    }
+
+    public void main(){
+        System.out.println("Starting ... ");
+
+        long start = System.currentTimeMillis();
+        // thread 1
+        Thread t1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                process();
+            }
+        });
+
+        // thread 2
+        Thread t2 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                process();
+            }
+        });
+
+        t1.start();
+        t2.start();
+
+        try {
+            t1.join();
+            t2.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        long end = System.currentTimeMillis();
+
+        System.out.println("Time take: " + (end - start));
+        System.out.println("List1: " + list1.size() + "; list2: " + list2.size());
+    }
+}
+```
+- Now it correctly locks each method indepent of the other method and each method can be run on different threads simultaneously while the for a given method, only one thread can access it at a time. The output:
+```java
+Starting ... 
+Time take: 2842
+List1: 2000; list2: 2000
+```

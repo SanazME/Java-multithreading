@@ -159,3 +159,117 @@ public class App {
     }
 }
 ```
+
+- For thread synchronization, we create two threads inside the doWork method and we stat the two threads, now wihtout using `t1.join()` the result of the count might not be 20,000 because in the Main (mehtod) thread, the two threads are spawned/started immediately and then the system print out which might return 0 and then those loops are started in each thread.
+- To avoid that, we use `t1.join()` to wait for each thread to die and finish work.
+- Still, if we run it multiple times, we might get different answers because the operation `count ++` that seems to be an atomic operation (done in one step) is actually done in 3 steps!. it is equivalent of `count = count + 1`
+  1. get value of count
+  2. add 1 to that 
+  3. store back into count
+
+- so some increments might be skipped because both threads read the value because of **interleaving problem**. One thread might increment twice before the other thread can increment the count. Or both thread read the value and increment to the same value.
+- To avoid it, we want to make sure that when a thread reads the value of increments and stops it, no other thread can get at it and change it.
+
+```java
+public class App {
+    private int count = 0;
+
+    public static void main(String[] args) {
+        App app = new App();
+        app.doWork();
+    }
+
+    public void doWork(){
+        Thread t1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                for (int i=0; i<10000; i++){
+                    count ++;
+                }
+            }
+        });
+
+        Thread t2 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                for (int i=0; i<10000; i++){
+                    count ++;
+                }
+            }
+        });
+
+        t1.start();
+        t2.start();
+
+
+        try {
+            t1.join();
+            t2.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("Count is: " + count);
+    }
+}
+```
+
+- The simplest solution when we can only an integer parameter is to make an **AtomicInteger**. **AtomicInteger is a specialized class that allows you to a increment your count variable in one step (atomic).**
+
+- More general way is to define a method for incrementing the count and use `synchronized` keyword for that method.
+
+- **every object in java has an intrinsic lock / monitor lock / mutex**. if you call a synchronized method of an object (in our case we're calling synchronized increment method of object App), you have to acquire the intrinsic lock before you can call it.
+- 
+- Only one thread can acquire the intrinsic lock of an object at a time. If one thread acquires the intrinsic lock of object App and runs that method and if the second thread tries to call the same method, the second thread has to wait until the first thread release the intrinsic lock by that method finishes executing.
+- 
+- **Every object has one intrinsic lock and only one thread can acquire it at a given time. A method marked `synchronized` can only be called acquiring the intrinsic lock**.
+- 
+- with synchronized, you don't have to use `volatile` because synchronized guarantees that all threads can see the current state of a variable.
+```java
+public class App {
+
+    private int count=0;
+
+    public synchronized void increment(){
+        count ++;
+    }
+
+    public static void main(String[] args) {
+        App app = new App();
+        app.doWork();
+    }
+
+    public void doWork(){
+        Thread t1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                for (int i=0; i<10000; i++){
+                    increment();
+                }
+            }
+        });
+
+        Thread t2 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                for (int i=0; i<10000; i++){
+                    increment();
+                }
+            }
+        });
+
+        t1.start();
+        t2.start();
+
+
+        try {
+            t1.join();
+            t2.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("Count is: " + count);
+    }
+}
+```

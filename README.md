@@ -615,3 +615,64 @@ Starting 4
 Completed 4
 All tasks completed.
 ```
+
+## Countdown Latches
+- `CountDowmLatch` class lets you count down from a number that you specify. It lets one or more threads wait until the latch reaches 0. One or more thread can count down the latch and when it's zero then one or more threads that are waiting on the latch can proceed.
+- Until the count reaches zero, actions in a thread prior to calling `countDown()` happen-before actions following a successful return from a corresponding `await()` in another thread.
+
+- 
+
+```java
+class Processor implements Runnable {
+
+    private CountDownLatch latch;
+
+    public Processor(CountDownLatch latch) {
+        this.latch = latch;
+    }
+
+    @Override
+    public void run() {
+        System.out.println("Started.");
+
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        /**
+         * after the pervious process is done, we count down latch
+         * it is also thread-safe so different threads counting this down
+         * won't cause interleaving issues.
+         */
+        latch.countDown();
+
+    }
+}
+
+public class App {
+
+    public static void main(String[] args) {
+        CountDownLatch latch = new CountDownLatch(3);
+
+        // create 3 threads
+        ExecutorService executor = Executors.newFixedThreadPool(3);
+
+        // Each processor is assigned to a thread, we can have more 100 processors
+        // Each processor has latch and counts it down to zero
+        for (int i=0; i<3; i++){
+            executor.submit(new Processor(latch));
+        }
+
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("Completed.");
+    }
+}
+
+```

@@ -518,3 +518,100 @@ Starting ...
 Time take: 2842
 List1: 2000; list2: 2000
 ```
+
+## Thread Pools
+- Thread pools are way of managing lots of threads. There is a lot of overhead in starting a thread and by recycling threads in a thread pool we avoid that overhead.
+- To create multiple threads, we can either use `Thread` class or use `ExecutorService` as below:
+```java
+// create a thread pool of 2 workers
+ExecutorService executor = Executors.newFixedThreadPool(2);
+
+// passing tasks to each of those workers (executors)
+for (int i=0; i<5; i++){
+    executor.submit(new Processor(i));
+}
+
+/**
+ * once the threads are done processing, shut them down, it waits till all the threads are finished processing
+ * Initiates an orderly shutdown in which previously submitted tasks are executed, but no new tasks will be accepted. 
+ * Invocation has no additional effect if already shut down.
+ * This method does not wait for previously submitted tasks to complete execution. Use  awaitTermination to do that.
+ */ 
+executor.shutdown();
+
+/**
+ * Blocks until all tasks have completed execution after a shutdown request, or the timeout occurs, 
+ * or the current thread is interrupted, whichever happens first.
+ */
+executor.awaitTermination(1, TimeUnit.DAYS); // wait for one day
+```
+
+- This is a thread pool of 2 workers (executors) to do tasks. ExecutorService is a managerial thread that handles those threads.
+
+```java
+class Processor implements Runnable {
+
+    private int id;
+
+    // since we're going to create lots of processor objects, we add a constructor with the id of the processor
+    public Processor(int id) {
+        this.id = id;
+    }
+
+    @Override
+    public void run() {
+        System.out.println("Starting " + id);
+
+        // Doing some work like processing a file etc
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("Completed " + id);
+    }
+}
+
+public class App {
+
+    public static void main(String[] args) {
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        for (int i=0; i<5; i++){
+            executor.submit(new Processor(i));
+        }
+
+        executor.shutdown();
+
+        System.out.println("All tasks submitted.");
+
+        // if the tasks did not finish in a day, this line will wait one day and terminates
+        try {
+            executor.awaitTermination(1, TimeUnit.DAYS); // wait for one day
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("All tasks completed.");
+    }
+}
+```
+
+- The output:
+- When a task is completed in a thread another task is started in that same thread:
+```java
+All tasks submitted.
+Starting 0
+Starting 1
+Completed 0
+Completed 1
+Starting 2
+Starting 3
+Completed 3
+Completed 2
+Starting 4
+Completed 4
+All tasks completed.
+```

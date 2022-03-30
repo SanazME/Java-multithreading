@@ -676,3 +676,138 @@ public class App {
 }
 
 ```
+
+## Producer-Consumer pattern
+- `BlockingQueue` data structure is FIFO queue: A Queue that additionally supports operations that wait for the queue to become non-empty when retrieving an element, and wait for space to become available in the queue when storing an element.
+  
+- `BlockingQueue` methods come in four forms, with different ways of handling operations that cannot be satisfied immediately, but may be satisfied at some point in the future: 
+1. one throws an exception, 
+2. the second returns a special value (either null or false, depending on the operation), 
+3. the third blocks the current thread indefinitely until the operation can succeed, and the 
+4. fourth blocks for only a given maximum time limit before giving up. 
+
+These methods are summarized in the following table:
+
+Attempt | Throws exception | Special value | Blocks | Times out
+--- |------------------|---------------|--------|---
+Insert | add(e)           | offer(e)      | put(e) | offer(e, time, unit) 
+Remove | remove()         | poll()        | take() |poll(time, unit) 
+Examine | element()        | peek()        | not applicable    | not applicable 
+
+- BlockingQueue implementations are designed to be used primarily for producer-consumer queues, but additionally support the Collection interface. So, for example, it is possible to remove an arbitrary element from a queue using remove(x). However, such operations are in general not performed very efficiently, and are intended for only occasional use, such as when a queued message is cancelled.
+- 
+- BlockingQueue implementations are thread-safe. All queuing methods achieve their effects atomically using internal locks or other forms of concurrency control. However, the bulk Collection operations addAll, containsAll, retainAll and removeAll are not necessarily performed atomically unless specified otherwise in an implementation. So it is possible, for example, for addAll(c) to fail (throwing an exception) after adding only some of the elements.
+- 
+- A BlockingQueue does not intrinsically support any kind of "close" or "shutdown" operation to indicate that no more items will be added. The needs and usage of such features tend to be implementation-dependent. For example, a common tactic is for producers to insert special end-of-stream or poison objects, that are interpreted accordingly when taken by consumers.
+-
+- Memory consistency effects: As with other concurrent collections, actions in a thread prior to placing an object into a BlockingQueue happen-before actions subsequent to the access or removal of that element from the BlockingQueue in another thread.
+- 
+- Usage example, based on a typical producer-consumer scenario. Note that a BlockingQueue can safely be used with multiple producers and multiple consumers.
+```java
+class Producer implements Runnable {     
+    private final BlockingQueue queue;     
+    Producer(BlockingQueue q) { queue = q; }     
+  
+    public void run() {       
+        try {         
+            while (true) { queue.put(produce()); }       
+        } catch (InterruptedException ex) 
+        { ... handle ...}     
+    }     
+    
+    Object produce() { ... }   
+}
+
+class Consumer implements Runnable {     
+    private final BlockingQueue queue;     
+    Consumer(BlockingQueue q) { queue = q; }     
+  
+    public void run() {
+        try {
+            while (true) { consume(queue.take());
+            }
+        } catch (InterruptedException ex)
+            { ... handle ...}     
+    }     
+    
+    void consume(Object x) { ... }   
+}
+
+class Setup {
+    void main() {
+        BlockingQueue q = new SomeQueueImplementation();
+        Producer p = new Producer(q);
+        Consumer c1 = new Consumer(q);
+        Consumer c2 = new Consumer(q);
+        new Thread(p).start();
+        new Thread(c1).start();
+        new Thread(c2).start();
+    }
+}
+```
+
+- Here is out example:
+```java
+public class App {
+
+    private static BlockingQueue<Integer> queue = new ArrayBlockingQueue<Integer>(10);
+
+    public static void main(String[] args) throws InterruptedException {
+        // One thread for producer
+	    Thread t1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                producer();
+            }
+        });
+
+        // One thread for consumer
+        Thread t2 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                consumer();
+            }
+        });
+
+        t1.start();
+        t2.start();
+
+        t1.join();
+        t2.join();
+
+    }
+
+    private static void producer(){
+        Random random = new Random();
+
+        while (true) {
+            try {
+                queue.put(random.nextInt(100));
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private static void consumer(){
+        Random random = new Random();
+
+        while (true) {
+            try {
+                Thread.sleep(100);
+
+                if (random.nextInt(10) == 0){
+                    Integer value = queue.take();
+
+                    System.out.println("Taken value: " + value + "; Queue size is: " + queue.size());
+                }
+
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+        }
+    }
+}
+
+```

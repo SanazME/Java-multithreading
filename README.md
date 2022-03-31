@@ -855,6 +855,50 @@ public class Processor {
   }
 }
 ```
+- Inside the main app, we create thread and run those methods:
+```java
+public class App {
+
+  public static void main(String[] args) {
+
+    final Processor processor = new Processor();
+
+    Thread t1 = new Thread(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          processor.produce();
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        }
+      }
+    });
+
+    Thread t2 = new Thread(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          processor.consume();
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        }
+      }
+    });
+
+    t1.start();
+    t2.start();
+
+    try {
+      t1.join();
+      t2.join();
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
+
+
+  }
+}
+```
 
 - Every object (since inheriting from `Object` class) has `wait() or wait(timeout)` method. It is a method of `Object` class.
 - `wait()` it waits and it does not consume system resources. **You can `wait()` and `notify()` only call it within synchronized code blocks**. It hands over control of the lock that the synchronized block is locked on.
@@ -870,3 +914,5 @@ public class Processor {
 3. Some other thread interrupts thread T. 
 4. The specified amount of real time has elapsed, more or less. The amount of real time, in nanoseconds, is given by the expression 1000000 * timeoutMillis + nanos. If timeoutMillis and nanos are both zero, then real time is not taken into consideration and the thread waits until awakened by one of the other causes. 
 5. Thread T is awakened spuriously. (See below.)
+
+## Low-Level Producer-Consumer (Low-Level Synchronization)

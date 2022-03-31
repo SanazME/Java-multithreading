@@ -916,3 +916,69 @@ public class App {
 5. Thread T is awakened spuriously. (See below.)
 
 ## Low-Level Producer-Consumer (Low-Level Synchronization)
+- We usually put `lock.wait()` in a while loop to check a condition before waking up that thread again.
+- the lock keeps alternating between these two threads of producer and consumer. Producer adds values to list as fast as it can and everytime it notifies consumer, consumer has a random delay and remove item from list and notify back producer. 
+- We can see in results that no integer values are duplicated or lost (all in order) because of synch interleacving issue.
+- we can add delay also to producer to slow down the adding item to list:
+
+```java
+public class Processor {
+
+    private LinkedList<Integer> list = new LinkedList<Integer>();
+    private final int LIMIT = 10;
+    private Object lock = new Object();
+
+    public void produce() throws InterruptedException{
+        /**
+         * Producer adds items to the list (shared data store)
+         */
+
+        int value = 0;
+        Random random = new Random();
+
+        while (true) {
+
+            /**
+             * code accessing the shared data has to be inside sync block
+             */
+            synchronized (lock){
+                /**
+                 * Usually we surround wait() in a loop to check for a condition
+                 * before waking up the thread again
+                 */
+                while (list.size() == LIMIT) {
+                    // add wait to the object we lock
+                    lock.wait();
+                }
+                list.add(value++);
+                lock.notify(); // it wakes up the other thread
+            }
+          // sleep on average 500 ms
+          Thread.sleep(random.nextInt(1000));
+        }
+    }
+
+    public void consume() throws InterruptedException {
+
+        Random random = new Random();
+
+        while (true) {
+
+            synchronized (lock){
+
+                while (list.size() == 0) {
+                    lock.wait();
+                }
+
+                System.out.print("List size is: " + list.size());
+                int value = list.removeFirst();
+                System.out.println("; value is: " + value);
+                lock.notifyAll();
+            }
+
+            // sleep on average 500 ms
+            Thread.sleep(random.nextInt(1000));
+        }
+    }
+}
+```

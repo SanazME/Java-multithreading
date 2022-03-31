@@ -1,40 +1,64 @@
 package com.sanaz;
 
+import java.util.LinkedList;
+import java.util.Random;
 import java.util.Scanner;
 
 public class Processor {
+
+    private LinkedList<Integer> list = new LinkedList<Integer>();
+    private final int LIMIT = 10;
+    private Object lock = new Object();
+
     public void produce() throws InterruptedException{
-        // this block runs first (before consume block) because of Thread.sleep in consume to delay the execusion to
-        // after this block of code
-        synchronized (this){
-            System.out.println("Producer thread running ....");
+        /**
+         * Producer adds items to the list (shared data store)
+         */
+
+        int value = 0;
+        Random random = new Random();
+
+        while (true) {
+
             /**
-             * at wait() this thread relinquishes the lock and
-             * lose the control of intrinsic lock (which other thread running consumer will acquire it)
+             * code accessing the shared data has to be inside sync block
              */
-            wait();
-            System.out.println("Resumed.");
+            synchronized (lock){
+                /**
+                 * Usually we surround wait() in a loop to check for a condition
+                 * before waking up the thread again
+                 */
+                while (list.size() == LIMIT) {
+                    // add wait to the object we lock
+                    lock.wait();
+                }
+                list.add(value++);
+                lock.notify(); // it wakes up the other thread
+            }
+            Thread.sleep(random.nextInt(1000));
         }
     }
 
     public void consume() throws InterruptedException {
 
-        Scanner scanner = new Scanner(System.in);
-        Thread.sleep(2000);
+        Random random = new Random();
 
-        synchronized (this){
-            System.out.println("Waiting for return key.");
-            scanner.nextLine();
-            System.out.println("Return key is pressed");
-            /**
-             * notify the other thread lock on the same object to wake up
-             * notify does not relinquish the control of the lock
-             * after calling notify()/notifyAll() we want to relinquish the lock quickly otherwise
-             * the other thread will not be able to get the lock again.
-             * We do it by adding notify() at the end of synchronization block so the
-             * lock can be relinquished.
-             */
-            notify();
+        while (true) {
+
+            synchronized (lock){
+
+                while (list.size() == 0) {
+                    lock.wait();
+                }
+
+                System.out.print("List size is: " + list.size());
+                int value = list.removeFirst();
+                System.out.println("; value is: " + value);
+                lock.notifyAll();
+            }
+
+            // sleep on average 500 ms
+            Thread.sleep(random.nextInt(1000));
         }
     }
 }

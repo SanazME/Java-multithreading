@@ -811,3 +811,62 @@ public class App {
 }
 
 ```
+
+## Wait and Notify
+- Prodcuer and Consumer are high-level synchronization using BlockingQueue from concurrent library which is thread safe.
+- Wait and Notify are low-level thread synchronization technique in case we need it.
+- In the following example we define a Processor class with produce and consume methods and then we run each method inside a different thread.
+- When using synchronized block on `this` on the class object itself. So for example here, `this` is the Processor object and this block does not run until it acquire the intrinsic lock of object Processor:
+```java
+public class Processor {
+  public void produce() throws InterruptedException{
+    // this block runs first (before consume block) because of Thread.sleep in consume to delay the execusion to
+    // after this block of code
+    synchronized (this){
+      System.out.println("Producer thread running ....");
+      /**
+       * at wait() this thread relinquishes the lock and
+       * lose the control of intrinsic lock (which other thread running consumer will acquire it)
+       */
+      wait();
+      System.out.println("Resumed.");
+    }
+  }
+
+  public void consume() throws InterruptedException {
+
+    Scanner scanner = new Scanner(System.in);
+    Thread.sleep(2000);
+
+    synchronized (this){
+      System.out.println("Waiting for return key.");
+      scanner.nextLine();
+      System.out.println("Return key is pressed");
+      /**
+       * notify the other thread lock on the same object to wake up
+       * notify does not relinquish the control of the lock
+       * after calling notify()/notifyAll() we want to relinquish the lock quickly otherwise
+       * the other thread will not be able to get the lock again.
+       * We do it by adding notify() at the end of synchronization block so the
+       * lock can be relinquished.
+       */
+      notify();
+    }
+  }
+}
+```
+
+- Every object (since inheriting from `Object` class) has `wait() or wait(timeout)` method. It is a method of `Object` class.
+- `wait()` it waits and it does not consume system resources. **You can `wait()` and `notify()` only call it within synchronized code blocks**. It hands over control of the lock that the synchronized block is locked on.
+- At the line `wait()` the synchronized block will lose control of the lock.
+
+- `wait(timeout, nanos)` : Causes the current thread to wait until it is awakened, typically by being notified or interrupted, or until a certain amount of real time has elapsed.
+  The current thread must own this object's monitor lock. 
+  
+- This method causes the current thread (referred to here as T) to place itself in the wait set for this object and then to relinquish any and all synchronization claims on this object. Note that only the locks on this object are relinquished; any other objects on which the current thread may be synchronized remain locked while the thread waits. 
+- Thread T then becomes disabled for thread scheduling purposes and lies dormant until one of the following occurs:
+1. Some other thread invokes the `notify` method for this object and thread T happens to be arbitrarily chosen as the thread to be awakened. 
+2. Some other thread invokes the `notifyAll` method for this object. 
+3. Some other thread interrupts thread T. 
+4. The specified amount of real time has elapsed, more or less. The amount of real time, in nanoseconds, is given by the expression 1000000 * timeoutMillis + nanos. If timeoutMillis and nanos are both zero, then real time is not taken into consideration and the thread waits until awakened by one of the other causes. 
+5. Thread T is awakened spuriously. (See below.)

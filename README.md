@@ -1,5 +1,16 @@
 # Java-multithreading
 
+# Table of Contents
+1. [Ways to Start a Thread](#ways-to-start-a-thread)
+2. [Basic Thread Synchornization](#basic-thread-synchornization)
+3. [Multiple Locks; Using Synchronized Code Blocks](#multiple-locks-using-synchronized-code-blocks)
+4. [Thread Pools](#thread-pools)
+5. [Countdown Latches](#countdown-latches)
+6. [Producer-Consumer pattern](#producer-consumer-pattern)
+7. [Wait and Notify](#wait-and-notify)
+8. [Low-Level Producer-Consumer (Low-Level Synchronization)](#low-level-producer-consumer-low-level-synchronization)
+9. [Re-entrant Locks](#re-entrant-locks)
+
 ## Ways to Start a Thread 
 - There are two way to start a thread in java.
 - Thread is a like a separate OS process which can run concurrently with other threads.

@@ -277,6 +277,9 @@ public class App {
 ## Multiple Locks; Using Synchronized Code Blocks
 - we have our main app which call Worker.main() method and Worker class has two lists and two stages and do work on those lists. Let's imagine that `stageOne()` method in Worker class does some calculations which we show by sleeping the thread `Thread.sleep(1) // 1 s` to slow the program. For example that can represents pinging a machine which takes some time and then adding that ping time: `list1.add(random.nextInt(100))`.
 
+<details>
+  <summary> Multiple locks: </summary>
+
 ```java
 public class Worker {
 
@@ -334,6 +337,9 @@ public class App {
 }
 
 ```
+
+</details>
+
 - so in the above scenario, we might be processing a file or pinging a machine and in the `process` method it loops 1000 times and each time, it calls stageOne and stageTwo. The output time is about 2-3 s because each stage take 1 ms and it repeats 1000 times so the overall of two processes are about 2000 ms.
 ```java
 Starting ... 
@@ -342,6 +348,10 @@ List1: 1000; list2: 1000
 ```
 
 - we can speed up the process by running them on multiple threads. So define two threads that run process method and we see that now the size of lists are different that 1000 each because of thread interleaving problem:
+
+<details>
+  <summary> click to expand:</summary>
+
 ```java
 public class Worker {
 
@@ -414,6 +424,8 @@ public class Worker {
     }
 }
 ```
+</details>
+
 
 output and the time takes is still about that 2 s:
 ```java
@@ -431,7 +443,9 @@ List1: 2000; list2: 2000
 
 - The reason is when we call synchronized keyword, it acquire the intrinsic lock of `Worker` object and so if one thread runs `stageOne` method, the second try can not run that method and has to wait till the lock is released. The same for `stageTwo` method which is the behavior we want BUT **the problem is there is only ONE lock for `Worker` object so if one thread runns stageOne method, another thread has to wait to run stageTwo method even though those two methods are INDEPENDENT and not sharing the same data and can be run on two different threads at the same time**.
 
-- we can do this by creating separate lock objects (new objects) and synchronizing locks separately (adding synchronized block):
+<details>
+  <summary> we can do this by creating separate lock objects (new objects) and synchronizing locks separately (adding synchronized block): </summary>
+
 ```java
 public class Worker {
 
@@ -512,6 +526,9 @@ public class Worker {
     }
 }
 ```
+</details>
+
+
 - Now it correctly locks each method indepent of the other method and each method can be run on different threads simultaneously while the for a given method, only one thread can access it at a time. The output:
 ```java
 Starting ... 
@@ -746,7 +763,9 @@ class Setup {
 }
 ```
 
-- Here is out example:
+<details>
+  <summary>Here is out example:</summary>
+
 ```java
 public class App {
 
@@ -811,6 +830,7 @@ public class App {
 }
 
 ```
+</details>
 
 ## Wait and Notify
 - Prodcuer and Consumer are high-level synchronization using BlockingQueue from concurrent library which is thread safe.
@@ -855,7 +875,9 @@ public class Processor {
   }
 }
 ```
-- Inside the main app, we create thread and run those methods:
+<details>
+  <summary>Inside the main app, we create thread and run those methods:</summary>
+
 ```java
 public class App {
 
@@ -899,6 +921,7 @@ public class App {
   }
 }
 ```
+</details>
 
 - Every object (since inheriting from `Object` class) has `wait() or wait(timeout)` method. It is a method of `Object` class.
 - `wait()` it waits and it does not consume system resources. **You can `wait()` and `notify()` only call it within synchronized code blocks**. It hands over control of the lock that the synchronized block is locked on.
@@ -920,6 +943,8 @@ public class App {
 - the lock keeps alternating between these two threads of producer and consumer. Producer adds values to list as fast as it can and everytime it notifies consumer, consumer has a random delay and remove item from list and notify back producer. 
 - We can see in results that no integer values are duplicated or lost (all in order) because of synch interleacving issue.
 - we can add delay also to producer to slow down the adding item to list:
+<details>
+  <summary>wait-notify (low-level synchronization for producer-consumer pattern):</summary>
 
 ```java
 public class Processor {
@@ -982,3 +1007,8 @@ public class Processor {
     }
 }
 ```
+</details>
+
+## Re-entrant Locks
+- Re-entrant locks are another technique replaces synchronization block.
+

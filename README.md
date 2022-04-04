@@ -1022,4 +1022,169 @@ public class Processor {
 
 ## Re-entrant Locks
 - Re-entrant locks are another technique replaces synchronization block.
+- In the Runner class we have defined firstThread, secondThread and finished methods and in the main Applicaiton, we run the firstThread and secondThread in two different threads at the same time and after those threads are finished it calls finished method in the main app thread.
+- In the Runner class, we define a count varianle and a method to increment that count variable. We call that increment method in both of first and second threads. 
+- We can use synchronized block but instead, we use `ReentrantLock()`. ReentrantLock means that once a thread had acquired this lock and once thread is locked this lock, it can lock it again if it wants to and the lock keeps count of how many times it's been locked and then you have to unlock it by the same number of times.
+- Now adding lock and unlock like below is not good:
+```java
+public void firstThread() throws InterruptedException {
+        lock.lock();
+        increment();
+        lock.unlock();
+    }
+```
+because if `increment()` throws an exception, the `lock.unlock()` will never be called. We should always add increment() inside catch and try and add `lock.unlock()` inside `finally` block to make sure that it is always called:
+```java
+public void firstThread() throws InterruptedException {
+    lock.lock();
+    try{
+        increment();
+    } finally {
+        lock.unlock();
+    }
+}
+```
+<details>
+  <summary> The example with reentrant lock:</summary>
 
+```java
+public class Runner {
+
+    private int count = 0;
+    private Lock lock = new ReentrantLock();
+
+    private void increment(){
+        for (int i=0; i<10000; i++){
+            count++;
+        }
+    }
+
+    public void firstThread() throws InterruptedException {
+        lock.lock();
+
+        try{
+            increment();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void secondThread() throws InterruptedException {
+        lock.lock();
+
+        try{
+            increment();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void finished() {
+        System.out.println("Count is: " + count);
+    }
+}
+
+
+public class App {
+
+  public static void main(String[] args) throws InterruptedException {
+
+    final Runner runner = new Runner();
+
+    Thread t1 = new Thread(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          runner.firstThread();
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        }
+      }
+    });
+
+    Thread t2 = new Thread(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          runner.secondThread();
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        }
+      }
+    });
+
+    t1.start();
+    t2.start();
+
+    t1.join();
+    t2.join();
+
+    runner.finished();
+  }
+}
+
+```
+
+</details>
+
+- The equivalent of wait and notify for reentrant locks: Every Object in java had a wait and notify because they are method of the Object class. The names of method for ReentrantLock is different though:
+  - await instead of wait : It unlocks that lock and another thread can get in there and lock it.
+  - signal instead of notify
+- We need to the `Condition` object from the lock we're locking on. After gotting lock for the current thread, we can only call `await` or `signal` on that lock.
+```java
+public class Runner {
+
+  private int count = 0;
+  private Lock lock = new ReentrantLock();
+  private Condition cond = lock.newCondition();
+
+  private void increment(){
+    for (int i=0; i<10000; i++){
+      count++;
+    }
+  }
+
+  public void firstThread() throws InterruptedException {
+    lock.lock();
+
+    /**
+     * It unlocks that lock and another thread can get in there and lock it.
+     */
+    cond.await();
+
+    System.out.println("Woken up!");
+
+    try{
+      increment();
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  public void secondThread() throws InterruptedException {
+    Thread.sleep(1000);
+    lock.lock();
+    // wait for the next line to be pressed
+    System.out.println("Press the return key");
+    new Scanner(System.in).nextLine();
+    System.out.println("Got return key");
+
+    /**
+     * it wakes up the first thread
+     */
+    cond.signal();
+
+    try{
+      increment();
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  public void finished() {
+    System.out.println("Count is: " + count);
+  }
+}
+
+```
+- When calling `cond.signal()` to wake up the waiting thread (other thread), it's not enough and the other thread should also be able to acquire the lock so we need to always call `lock.unlock()` after we call `cond.signal()`. That thread must then re-acquire the lock before returning from await.
